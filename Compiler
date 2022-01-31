@@ -1,0 +1,107 @@
+This cThis class has some functions that split the source code in namespaces, then classes, then check each class to see if this class is the main class or 
+not by searching for the Main() function:
+public static string GetMainClass(List<string> classname, List<string> classCode) 
+{ 
+    for (int i = 0; i < classCode.Count; i++) 
+    { 
+        if (classCode[i].Contains("Main(") && !classCode.Contains("\"")) 
+        { 
+            return classname[i]; 
+        } 
+    } 
+    return "not found"; 
+}
+This function takes the class' sources codes as parameters and classNames that correspond to each class sourcecode. If it finds "Main()" without quotations,
+ it means that it is the main class.
+public void CompileCSharp(string code,string outputassembly ) 
+{ 
+    CSharpCodeProvider provider = new CSharpCodeProvider(); 
+    ICodeCompiler compiler = provider.CreateCompiler(); 
+#region CompilerParameters 
+    CompilerParameters parameters = new CompilerParameters() 
+    { 
+        MainClass = Classname(code), 
+            GenerateExecutable = true, 
+            OutputAssembly = outputassembly, 
+            IncludeDebugInformation = true, 
+    }; 
+    parameters.ReferencedAssemblies.Clear(); 
+    foreach (Assembly asm in assemblies) 
+    { 
+        parameters.ReferencedAssemblies.Add(asm.Location); 
+    } 
+#endregion 
+    CompilerResults result = compiler.CompileAssemblyFromSource(parameters, code); 
+    if (result.Errors.Count == 0) 
+    { 
+        if (!System.IO.File.Exists(outputassembly)) 
+        { 
+            OnFileNotExists(new EventArgs()); 
+            return; 
+        } 
+        ProcessStartInfo startInfo = new ProcessStartInfo(); 
+        startInfo.FileName =outputassembly; 
+        startInfo.WindowStyle = ProcessWindowStyle.Maximized; 
+        startInfo.Arguments = "\\S"; 
+        Process process = new Process(); 
+        process.StartInfo = startInfo; 
+        process.Start(); 
+        IntPtr hwnd = GetConsoleWindow(); 
+        ShowWindow(hwnd, 0); 
+    } 
+    else 
+    { 
+        foreach (CompilerError er in result.Errors) 
+        { 
+            List<string> cerrors = new List<string>(); 
+            cerrors.Clear(); 
+            cerrors.Add(
+                 er.ErrorText+ " Line ("+er.Line.ToString()+") error :"+er.ErrorNumber ); 
+            OnCompilationError(new ErrorEventArgs(cerrors)); 
+        } 
+        result.Errors.Clear(); 
+    } 
+}
+//First, we use ICodeProvider interface to compile CSharpCode:
+ICodeCompiler compiler = provider.CreateCompiler();
+//Then, we create Compiler Parameters Object and give it some compilation information like the Main class. The Classname method uses the parser to get the Main class, so we call it to get the Main class name in this form, 
+e.g.: Mynamespace.MyClass, OutPutAssembly property is the path of the output compiled program.
+CompilerParameters parameters = new CompilerParameters() 
+{ 
+    MainClass = Classname(code), 
+        GenerateExecutable = true, 
+        OutputAssembly = outputassembly, 
+        IncludeDebugInformation = true, 
+}; 
+//here we populate the compiled program with referenced assemblies 
+foreach (Assembly asm in assemblies) 
+{ 
+    parameters.ReferencedAssemblies.Add(asm.Location); 
+}
+I got the referenced assemblies by parsing the referenced namespaces, but it is not a robust method. First, I collect all the common assemblies by getting the assemblies
+ directories from the registry:
+//get all assemblies directories 
+public List<string> AssemblyDirectories() 
+{ 
+    List<string> assemblies = new List<string>(); 
+    Microsoft.Win32.RegistryKey key = Registry.LocalMachine; 
+    key = key.OpenSubKey(@"SOFTWARE\Microsoft\.NETFramework\AssemblyFolders"); 
+    string[] SubKeynames = key.GetSubKeyNames(); 
+    foreach (string subkeys in SubKeynames) 
+    { 
+        RegistryKey subkey = Registry.LocalMachine; 
+        subkey = subkey.OpenSubKey(
+            @"SOFTWARE\Microsoft\.NETFramework\AssemblyFolders\" + subkeys); 
+        string[] l = subkey.GetValueNames(); 
+        foreach (string v in l) 
+        { 
+            if (subkey.GetValueKind(v) == RegistryValueKind.String) 
+            { 
+                string value = (string)subkey.GetValue(v); 
+                assemblies.Add(value); 
+            } 
+        } 
+    } 
+    assemblies.Add( Environment. @":\Windows\Microsoft.NET\Framework\v2.0.50727"); 
+    return assemblies; 
+}
