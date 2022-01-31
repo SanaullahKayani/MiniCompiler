@@ -1,4 +1,6 @@
-# MiniCompilerThe .NET Framework provides the ICodeCompiler compiler execution interface.
+# MiniCompiler 
+
+The .NET Framework provides the ICodeCompiler compiler execution interface.
 The CSharpCodeProvider class implements this interface and provides access to instances
 of the C# code generator and code compiler. The following sample code creates an
 instance of CSharpCodeProvider and uses it to get a reference to a ICodeCompiler
